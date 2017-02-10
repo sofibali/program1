@@ -21,12 +21,16 @@
 **/
 
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.lang.Runnable;
 import java.io.*;
 import java.util.Date;
 import java.text.DateFormat;
-import java.util.TimeZone;
 import java.util.*;
+import java.nio.file.*;
+
+import com.sun.media.jfxmedia.logging.Logger;
 
 public class WebWorker implements Runnable
 {
@@ -35,6 +39,7 @@ public class WebWorker implements Runnable
     private String path;
     private String output;
     private int fileStatus;
+    private String contentType;
 /**
 * Constructor: must have a valid open socket
 **/
@@ -56,10 +61,12 @@ public void run()
       InputStream  is = socket.getInputStream();
       OutputStream os = socket.getOutputStream();
       readHTTPRequest(is);
-      writeHTTPHeader(os,"text/html");
-      writeContent(os, is);
-      os.flush();
-      socket.close();
+      contentType = "";
+     //change to a variable that can handle different ccontenttypes
+      writeHTTPHeader(os,contentType);
+   	  writeContent(os, is);
+   	  os.flush();
+   	  socket.close();
    } catch (Exception e) {
       System.err.println("Output error: "+e);
    }
@@ -70,6 +77,18 @@ public void run()
 /**
 * Read the HTTP request header.
 **/
+private void getContentType(){
+	Path true_path = Paths.get(path);
+	File file = true_path.toFile();
+	
+	try{
+			contentType = Files.probeContentType(true_path);
+	}catch (IOException ex){	
+		System.err.println("IOException: "+ex.getMessage());
+	}
+	return;
+}
+
 private void readHTTPRequest(InputStream is)
 {
    int line_num = 0;
@@ -101,6 +120,7 @@ private void readHTTPRequest(InputStream is)
 		 }
 		 input.close();
 		 fileStatus = 1;
+		 getContentType();
 	     }
 	     catch (java.io.FileNotFoundException e){
 		 fileStatus = 0;
@@ -139,6 +159,7 @@ private void writeHTTPHeader(OutputStream os, String contentType) throws Excepti
    //os.write("Content-Length: 438\n".getBytes()); 
    os.write("Connection: close\n".getBytes());
    os.write("Content-Type: ".getBytes());
+   //contwnt type needs to be variable
    os.write(contentType.getBytes());
    os.write("\n\n".getBytes()); // HTTP header ends with 2 newlines
    return;
@@ -151,10 +172,14 @@ private void writeHTTPHeader(OutputStream os, String contentType) throws Excepti
 **/
 private void writeContent(OutputStream os, InputStream is ) throws Exception
 {
-    if (fileStatus == 1){
-	os.write("<html><head</head><body>\n".getBytes());
-	os.write(output.getBytes());
-	os.write("</body></html>\n".getBytes());
+    //add FileInputStream
+	if (fileStatus == 1){
+		FileInputStream read_in = new FileInputStream(path);
+		int file_content = read_in.read();
+		while (file_content != -1){
+			os.write(file_content);
+			file_content = read_in.read();
+		}
     }
     else if(fileStatus == 2){
 	os.write("<html><head</head><body>\n".getBytes());
