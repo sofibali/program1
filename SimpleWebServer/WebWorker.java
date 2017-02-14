@@ -60,9 +60,11 @@ public void run()
    try {
       InputStream  is = socket.getInputStream();
       OutputStream os = socket.getOutputStream();
+      contentType = new String();
       readHTTPRequest(is);
-      contentType = "";
-     //change to a variable that can handle different ccontenttypes
+      if (fileStatus == 1 )
+    	  getContentType();
+      //change to a variable that can handle different ccontenttypes
       writeHTTPHeader(os,contentType);
    	  writeContent(os, is);
    	  os.flush();
@@ -83,6 +85,7 @@ private void getContentType(){
 	
 	try{
 			contentType = Files.probeContentType(true_path);
+			System.err.println("content Type: ("+contentType+")");
 	}catch (IOException ex){	
 		System.err.println("IOException: "+ex.getMessage());
 	}
@@ -106,23 +109,14 @@ private void readHTTPRequest(InputStream is)
 	 }
 	 System.err.println("Request line: ("+line+")");
          line_num++;
+        
 	 if(!path.equals("/") && !path.equals("")){
-	     try{
-		 output = new String();
-		 File read_in_file = new File(path.substring(1));
-		 Scanner input = new Scanner(read_in_file);
-		 while(input.hasNext()){
-		     output += input.nextLine() + "<br>";
-		 }
-		 if(output.contains("<cs371date>") || output.contains("<cs371server>")){
-		     output = output.replace("<cs371date>",new Date().toString());
-		     output = output.replace("<cs371server>", "SofiaBali CS371 server");
-		 }
-		 input.close();
-		 fileStatus = 1;
-		 getContentType();
+	     File read_in_file = new File(path.substring(1));
+		 if(read_in_file.exists()){
+	    	 fileStatus = 1;
+	    	 
 	     }
-	     catch (java.io.FileNotFoundException e){
+		 else{
 		 fileStatus = 0;
 	     }
 	 }
@@ -174,12 +168,30 @@ private void writeContent(OutputStream os, InputStream is ) throws Exception
 {
     //add FileInputStream
 	if (fileStatus == 1){
-		FileInputStream read_in = new FileInputStream(path);
-		int file_content = read_in.read();
-		while (file_content != -1){
-			os.write(file_content);
-			file_content = read_in.read();
+		File read_in_file = new File(path.substring(1));
+		if(contentType == "text/html"){
+			output = new String();
+			Scanner input = new Scanner(read_in_file);
+	
+			while(input.hasNext()){
+				output += input.nextLine() + "<br>";
+			}
+			input.close();
+			if(output.contains("<cs371date>") || output.contains("<cs371server>")){
+				output = output.replace("<cs371date>",new Date().toString());
+				output = output.replace("<cs371server>", "SofiaBali CS371 server");
+			}
+			os.write(output.getBytes());
 		}
+		else{
+			FileInputStream read_in = new FileInputStream(read_in_file);
+			int file_content = read_in.read();
+			while (file_content != -1){
+				os.write(file_content);
+				file_content = read_in.read();
+			}
+		}
+				
     }
     else if(fileStatus == 2){
 	os.write("<html><head</head><body>\n".getBytes());
